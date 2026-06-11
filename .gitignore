@@ -10,11 +10,12 @@ __pycache__/
 .venv/
 venv/
 
-# uv
+# uv / pyenv
 .python-version
 
 # Testing
 .pytest_cache/
+.cache/
 
 # Coverage
 .coverage
@@ -25,6 +26,11 @@ htmlcov/
 
 # Linting
 .ruff_cache/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
 
 # macOS
 .DS_Store
