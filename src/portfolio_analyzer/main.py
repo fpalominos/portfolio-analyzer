@@ -5,10 +5,11 @@ from portfolio_analyzer.stock import Stock
 def main() -> None:
     portfolio = Portfolio()
 
-    portfolio = portfolio.add_position(Stock("AAPL", 10, 100))
-    portfolio = portfolio.add_position(Stock("MSFT", 5, 200))
-    portfolio = portfolio.add_position(Stock("NVDA", 3, 300))
+    portfolio = portfolio.add_position(Stock("AAPL", 10))
+    portfolio = portfolio.add_position(Stock("MSFT", 5))
+    portfolio = portfolio.add_position(Stock("NVDA", 3))
 
+    pri
     print("Portfolio Summary")
     print("-----------------")
 
