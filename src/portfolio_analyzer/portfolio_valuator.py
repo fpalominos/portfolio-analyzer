@@ -4,19 +4,25 @@ from portfolio import Portfolio
 from portfolio_analyzer.price_service import PriceService
 from stock import Stock
 
+
 class PortfolioValuator:
 
     def __init__(self, price_service: PriceService) -> None:
         self.price_service = price_service
 
     async def value(self, portfolio: Portfolio) -> float:
-        total = 0.0
+        tasks = [
+            self.price_service.get_price(stock.symbol)
+            for stock in portfolio.positions
+        ]
 
-        for stock in portfolio.positions:
-            price = await self.price_service.get_price(stock.symbol)
-            total += stock.shares * price
+        prices = await asyncio.gather(*tasks)
 
-        return total
+        return sum(
+            stock.shares * price
+            for stock, price in zip(portfolio.positions, prices)
+        )
+
 
 async def main():
     service = PriceService()
@@ -29,6 +35,7 @@ async def main():
 
     value = await valuator.value(portfolio)
     print(value)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
