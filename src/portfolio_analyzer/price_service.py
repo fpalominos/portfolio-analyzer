@@ -1,8 +1,8 @@
 class PriceService:
     _PRICES: dict[str, float] = {
-        "AAPL": 210.0,
-        "MSFT": 510.0,
-        "NVDA": 170.0
+        "AAPL": 10,
+        "MSFT": 10,
+        "NVDA": 10
     }
 
     async def get_price(self, symbol: str) -> float:
