@@ -1,12 +1,14 @@
 import asyncio
 
-from portfolio_analyzer.allocation import Allocation
-from portfolio_analyzer.portfolio import Portfolio
-from portfolio_analyzer.portfolio_analytics import PortfolioAnalytics
-from portfolio_analyzer.portfolio_valuator import PortfolioValuator
-from portfolio_analyzer.price_service import PriceService
-from portfolio_analyzer.stock import Stock
-from portfolio_analyzer.valued_position import ValuedPosition
+from config import Settings
+import httpx
+from portfolio_analyzer.domain.allocation import Allocation
+from portfolio_analyzer.domain.portfolio import Portfolio
+from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
+from portfolio_analyzer.domain.portfolio_valuator import PortfolioValuator
+from portfolio_analyzer.services.price_service import PriceService
+from portfolio_analyzer.domain.stock import Stock
+from portfolio_analyzer.domain.valued_position import ValuedPosition
 
 
 async def main() -> None:
@@ -17,30 +19,36 @@ async def main() -> None:
         .add_position(Stock("NVDA", 3))
     )
 
-    service: PriceService = PriceService()
-    valuator: PortfolioValuator = PortfolioValuator(service)
-    positions: tuple[ValuedPosition, ...] = await valuator.value_positions(portfolio)
+    settings = Settings()
+    print("Loaded settings:", settings.model_dump())
+    client = httpx.AsyncClient(timeout=5)
+    finnhub_api_key = settings.finnhub_api_key
 
-    print("Portfolio Summary")
-    print("-----------------")
-    total_value: float = PortfolioAnalytics.total_value(positions)
-    print(f"Total value: {total_value:.2f}")
+    async with client as client:
+        service: PriceService = PriceService(client, finnhub_api_key)
+        valuator: PortfolioValuator = PortfolioValuator(service)
+        positions: tuple[ValuedPosition, ...] = await valuator.value_positions(portfolio)
 
-    largest_position: ValuedPosition | None = PortfolioAnalytics.largest_position(positions)
+        print("Portfolio Summary")
+        print("-----------------")
+        total_value: float = PortfolioAnalytics.total_value(positions)
+        print(f"Total value: {total_value:.2f}")
 
-    if largest_position:
-        print(f"Largest position: {largest_position}. Market value: {largest_position.market_value:.2f}")
+        largest_position: ValuedPosition | None = PortfolioAnalytics.largest_position(positions)
 
-    print("\nAllocation:")
+        if largest_position:
+            print(f"Largest position: {largest_position}. Market value: {largest_position.market_value:.2f}")
 
-    allocation: tuple[Allocation, ...] = PortfolioAnalytics.allocation(positions)
+        print("\nAllocation:")
 
-    formatted_allocation = tuple(
-        (allocated.position.stock.symbol, f"{allocated.percentage * 100:.2f}%")
-        for allocated in allocation)
+        allocation: tuple[Allocation, ...] = PortfolioAnalytics.allocation(positions)
 
-    if allocation:
-        print(f"Allocation: {formatted_allocation}")
+        formatted_allocation = tuple(
+            (allocated.position.stock.symbol, f"{allocated.percentage * 100:.2f}%")
+            for allocated in allocation)
+
+        if allocation:
+            print(f"Allocation: {formatted_allocation}")
 
 
 if __name__ == "__main__":

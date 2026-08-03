@@ -1,9 +1,9 @@
-from portfolio_analyzer.portfolio import Portfolio
-from portfolio_analyzer.portfolio_analytics import PortfolioAnalytics
-from portfolio_analyzer.portfolio_valuator import PortfolioValuator
-from portfolio_analyzer.price_service import PriceService
-from portfolio_analyzer.stock import Stock
-from portfolio_analyzer.valued_position import ValuedPosition
+from portfolio_analyzer.domain.portfolio import Portfolio
+from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
+from portfolio_analyzer.domain.portfolio_valuator import PortfolioValuator
+from portfolio_analyzer.services.price_service import PriceService
+from portfolio_analyzer.domain.stock import Stock
+from portfolio_analyzer.domain.valued_position import ValuedPosition
 
 
 async def test_total_value():

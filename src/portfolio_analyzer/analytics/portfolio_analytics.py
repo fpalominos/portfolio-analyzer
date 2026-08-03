@@ -1,5 +1,5 @@
-from portfolio_analyzer.allocation import Allocation
-from portfolio_analyzer.valued_position import ValuedPosition
+from portfolio_analyzer.domain.allocation import Allocation
+from portfolio_analyzer.domain.valued_position import ValuedPosition
 
 
 class PortfolioAnalytics:

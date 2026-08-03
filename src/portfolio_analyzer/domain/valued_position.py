@@ -1,6 +1,6 @@
 from attr import dataclass
 
-from portfolio_analyzer.stock import Stock
+from portfolio_analyzer.domain.stock import Stock
 
 
 @dataclass(frozen=True)
