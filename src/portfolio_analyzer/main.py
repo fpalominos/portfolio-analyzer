@@ -1,14 +1,15 @@
 import asyncio
 
-from config import Settings
 import httpx
+
+from config import Settings
+from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
 from portfolio_analyzer.domain.allocation import Allocation
 from portfolio_analyzer.domain.portfolio import Portfolio
-from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
 from portfolio_analyzer.domain.portfolio_valuator import PortfolioValuator
-from portfolio_analyzer.services.price_service import PriceService
 from portfolio_analyzer.domain.stock import Stock
 from portfolio_analyzer.domain.valued_position import ValuedPosition
+from portfolio_analyzer.services.price_service import PriceService
 
 
 async def main() -> None:

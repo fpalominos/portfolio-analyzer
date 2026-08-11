@@ -1,7 +1,7 @@
 import httpx
 from pydantic import ValidationError
 
-from portfolio_analyzer.exceptions.price_service import InvalidApiKeyError
+from portfolio_analyzer.exceptions.price_service import InvalidApiKeyError, InvalidSymbolError
 from portfolio_analyzer.exceptions.price_service import PriceServiceError
 from portfolio_analyzer.models.finnhub_quote import FinnhubQuote
 
@@ -29,7 +29,12 @@ class PriceService:
 
             response.raise_for_status()
             data = response.json()
-            return self._parse_quote(data)
+            parsed_quote: FinnhubQuote = self._parse_quote(data)
+            if parsed_quote.current_price == 0:
+                raise InvalidSymbolError(
+                    f"Finnhub does not recognise this symbol: {symbol}"
+                )
+            return parsed_quote
         except httpx.HTTPStatusError as e:
 
             if e.response.status_code == 401:
@@ -55,7 +60,11 @@ class PriceService:
             data: dict) -> FinnhubQuote:
 
         if "error" in data:
-            raise PriceServiceError(data["error"])
+            match data["error"]:
+                case "Invalid API key.":
+                    raise InvalidApiKeyError()
+                case _:
+                    raise PriceServiceError(data["error"])
 
         try:
             return FinnhubQuote.model_validate(data)
