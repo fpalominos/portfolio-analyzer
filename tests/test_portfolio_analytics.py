@@ -35,3 +35,33 @@ def test_allocation_returns_expected_allocation():
 
 def test_allocation_with_zero_total_returns_empty():
     assert PortfolioAnalytics.allocation(()) == ()
+
+
+def test_total_value_with_empty_positions_returns_zero():
+    assert PortfolioAnalytics.total_value(()) == 0.0
+
+
+def test_largest_position_with_empty_positions_returns_none():
+    assert PortfolioAnalytics.largest_position(()) is None
+
+
+def test_allocation_with_single_position_returns_100_percent():
+    positions: tuple[ValuedPosition] = (
+        ValuedPosition(Stock("AAPL", 10), 100.0),
+    )
+
+    allocations = PortfolioAnalytics.allocation(positions)
+    assert len(allocations) == 1
+    assert allocations[0].percentage == 1.0
+
+
+def test_allocation_with_equal_values_returns_equal_percentages():
+    positions: tuple[ValuedPosition, ValuedPosition] = (
+        ValuedPosition(Stock("AAPL", 10), 100.0),
+        ValuedPosition(Stock("MSFT", 10), 100.0)
+    )
+
+    allocations = PortfolioAnalytics.allocation(positions)
+    assert len(allocations) == 2
+    assert allocations[0].percentage == 0.5
+    assert allocations[1].percentage == 0.5
