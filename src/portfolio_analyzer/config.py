@@ -6,5 +6,5 @@ class Settings(BaseSettings):
     finnhub_api_key: str
 
     model_config = {
-        "env_file": str(Path(__file__).parent / ".env")
+        "env_file": str(Path(__file__).parent.parent.parent / ".env")
     }
