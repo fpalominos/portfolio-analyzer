@@ -15,4 +15,5 @@ dependencies = [
 dev = [
     "pytest>=9.1.0",
     "jupyterlab>=4.0.0",
+    "pytest-asyncio>=1.4.0",
 ]
