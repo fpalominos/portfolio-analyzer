@@ -105,3 +105,109 @@ def test_portfolio_value_when_valuation_fails_with_invalid_symbol():
 
     finally:
         app.dependency_overrides.clear()
+
+
+def test_create_portfolio_returns_expected_response():
+    data = {
+        "positions": [
+            {
+                "symbol": "NVDA",
+                "shares": 10
+            },
+            {
+                "symbol": "MSFT",
+                "shares": 20
+            }
+        ]
+    }
+
+    response = client.post("/portfolio", json=data)
+
+    assert response.status_code == 200
+    assert response.json() == {'positions': [{'symbol': 'NVDA', 'shares': 10}, {'symbol': 'MSFT', 'shares': 20}]}
+
+
+def test_create_portfolio_when_shares_is_missing_returns_validation_error():
+    data = {
+        "positions": [
+            {
+                "symbol": "NVDA",
+            }
+        ]
+    }
+
+    response = client.post("/portfolio", json=data)
+
+    assert response.status_code == 422
+
+    body = response.json()
+
+    assert body["detail"][0]["loc"] == [
+        "body", "positions", 0, "shares"
+    ]
+
+def test_create_portfolio_when_symbol_is_missing_returns_validation_error():
+    data = {
+        "positions": [
+            {
+                "shares": 10,
+            }
+        ]
+    }
+
+    response = client.post("/portfolio", json=data)
+
+    assert response.status_code == 422
+
+    body = response.json()
+
+    assert body["detail"][0]["loc"] == [
+        "body", "positions", 0, "symbol"
+    ]
+
+def test_create_portfolio_when_shares_is_invalid_returns_validation_error():
+    data = {
+        "positions": [
+            {
+                "symbol": "NVDA",
+                "shares": "INVALID",
+            }
+        ]
+    }
+
+    response = client.post("/portfolio", json=data)
+
+    assert response.status_code == 422
+
+    body = response.json()
+
+    assert body["detail"][0]["loc"] == [
+        "body", "positions", 0, "symbol"
+    ]
+
+    assert body["detail"][0]["type"] == "int_parsing"
+
+def test_create_empty_portfolio_returns_empty_positions():
+    data = {
+        "positions": []
+    }
+
+    response = client.post("/portfolio", json=data)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "positions": []
+    }
+
+def test_create_portfolio_when_positions_is_missing_returns_validation_error():
+    data = {}
+
+    response = client.post("/portfolio", json=data)
+
+    assert response.status_code == 422
+
+    body = response.json()
+
+    assert body["detail"][0]["loc"] == [
+        "body", "positions"
+    ]

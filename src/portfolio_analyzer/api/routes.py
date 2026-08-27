@@ -6,6 +6,8 @@ from portfolio_analyzer.domain.portfolio import Portfolio
 from portfolio_analyzer.domain.stock import Stock
 from portfolio_analyzer.models.portfolio_value import PortfolioValueResponse
 from portfolio_analyzer.services.portfolio_valuator import PortfolioValuator
+from portfolio_analyzer.models.portfolio import PortfolioValueRequest, PortfolioCreateRequest, \
+    PortfolioPositionResponse, PortfolioResponse
 
 router = APIRouter()
 
@@ -38,3 +40,35 @@ async def portfolio_value(
     total_value = PortfolioAnalytics.total_value(positions)
 
     return PortfolioValueResponse(total_value=total_value)
+
+
+@router.post("/portfolio", response_model=PortfolioResponse)
+def create_portfolio(request: PortfolioCreateRequest) -> PortfolioResponse:
+    # todo: remove. Just for local development
+    # portfolio = (Portfolio()
+    #              .add_position(Stock("AAPL", 10))
+    #              .add_position(Stock("MSFT", 5))
+    #              .add_position(Stock("NVDA", 3)))
+
+    portfolio = Portfolio()
+
+    for position in request.positions:
+        portfolio = portfolio.add_position(
+            Stock(position.symbol, position.shares)
+        )
+
+    positions = [PortfolioPositionResponse(symbol=position.symbol, shares=position.shares)
+                 for position in portfolio.positions]
+
+    return PortfolioResponse(positions=positions)
+
+
+# todo: remove. Just for local development
+# if __name__ == '__main__':
+#     nvidia = PortfolioValueRequest(symbol="NVDA", shares=3)
+#     msft = PortfolioValueRequest(symbol="MSFT", shares=5)
+#
+#     request = PortfolioCreateRequest(positions=[nvidia, msft])
+#     r = create_portfolio(request)
+#
+#     print(f"r: {r}")
