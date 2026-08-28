@@ -2,13 +2,15 @@ from fastapi import FastAPI
 
 from portfolio_analyzer.api.exceptions import (
     invalid_symbol_exception_handler,
-    price_service_exception_handler,
+    price_service_exception_handler, portfolio_not_found_exception_handler,
 )
 from portfolio_analyzer.api.routes import router
 from portfolio_analyzer.exceptions.price_service import (
     InvalidSymbolError,
     PriceServiceError,
 )
+
+from portfolio_analyzer.exceptions.portfolio import PortfolioNotFoundError
 
 app = FastAPI()
 
@@ -22,6 +24,11 @@ app.add_exception_handler(
 app.add_exception_handler(
     InvalidSymbolError,
     invalid_symbol_exception_handler,
+)
+
+app.add_exception_handler(
+    PortfolioNotFoundError,
+    portfolio_not_found_exception_handler,
 )
 
 # async def main() -> None:

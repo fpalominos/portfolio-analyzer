@@ -1,0 +1,2 @@
+class PortfolioNotFoundError(Exception):
+    pass
