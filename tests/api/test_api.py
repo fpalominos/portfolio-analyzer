@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from portfolio_analyzer.api.dependencies import get_valuator, get_portfolio_repository
+from portfolio_analyzer.api.dependencies import get_valuator, get_portfolio_repository, get_llm_service
 from portfolio_analyzer.domain.portfolio import Portfolio
 from portfolio_analyzer.domain.stock import Stock
 from portfolio_analyzer.domain.valued_position import ValuedPosition
@@ -25,6 +25,7 @@ class FakeValuator:
             ),
         )
 
+
 class FakeValuatorWithKnownPrices:
     async def value_positions(
             self,
@@ -40,6 +41,12 @@ class FakeValuatorWithKnownPrices:
                 20.0,
             ),
         )
+
+
+class FakeLLMService:
+    async def analyse(self, prompt: str) -> str:
+        return "Your portfolio looks well diversified."
+
 
 client = TestClient(app)
 
@@ -275,6 +282,7 @@ def test_portfolio_value_when_portfolio_does_not_exist_returns_not_found(
     finally:
         app.dependency_overrides.clear()
 
+
 def test_create_portfolio_then_get_portfolio_value(
         portfolio_repository,
 ):
@@ -311,3 +319,48 @@ def test_create_portfolio_then_get_portfolio_value(
 
     finally:
         app.dependency_overrides.clear()
+
+
+def test_portfolio_analyse_returns_expected_response():
+    app.dependency_overrides[get_llm_service] = lambda: FakeLLMService()
+
+    data = {"prompt": "Analyse my portfolio"}
+    try:
+
+        response = client.post("/portfolio/analyse", json=data)
+
+        assert response.status_code == 200
+        assert response.json() == {"response": "Your portfolio looks well diversified."}
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_portfolio_analyse_when_prompt_is_missing_returns_validation_error():
+
+    data = {"another_field": "another value"}
+
+    response = client.post("/portfolio/analyse", json=data)
+
+    assert response.status_code == 422
+
+    body = response.json()
+
+    assert body["detail"][0]["loc"] == ['body', 'prompt']
+
+    assert body["detail"][0]["type"] == "missing"
+
+
+def test_portfolio_analyse_when_prompt_is_invalid_returns_validation_error():
+
+    data = {"prompt": 1234}
+
+    response = client.post("/portfolio/analyse", json=data)
+
+    assert response.status_code == 422
+
+    body = response.json()
+
+    assert body["detail"][0]["loc"] == ['body', 'prompt']
+
+    assert body["detail"][0]["type"] == "string_type"

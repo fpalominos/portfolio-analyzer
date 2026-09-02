@@ -4,6 +4,7 @@ from pathlib import Path
 
 class Settings(BaseSettings):
     finnhub_api_key: str
+    openai_api_key: str
 
     model_config = {
         "env_file": str(Path(__file__).parent.parent.parent / ".env")

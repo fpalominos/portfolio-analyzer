@@ -37,3 +37,6 @@ build/
 
 # Environment
 .env
+
+# Experimentation
+src/portfolio_analyzer/scratch.py

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
-from portfolio_analyzer.api.dependencies import get_valuator, get_portfolio_repository
+from portfolio_analyzer.api.dependencies import get_valuator, get_portfolio_repository, get_llm_service
 from portfolio_analyzer.domain.portfolio import Portfolio
 from portfolio_analyzer.domain.stock import Stock
 from portfolio_analyzer.exceptions.portfolio import PortfolioNotFoundError
@@ -9,7 +9,9 @@ from portfolio_analyzer.models.portfolio import PortfolioCreateRequest, \
     PortfolioPositionResponse, PortfolioResponse
 from portfolio_analyzer.models.portfolio_value import PortfolioValueResponse
 from portfolio_analyzer.repositories.portfolio_repository import PortfolioRepository
+from portfolio_analyzer.services.llm_service import LLMService
 from portfolio_analyzer.services.portfolio_valuator import PortfolioValuator
+from portfolio_analyzer.models.llm_service import PortfolioAnalysisRequest, PortfolioAnalysisResponse
 
 router = APIRouter()
 
@@ -66,6 +68,15 @@ def create_portfolio(
     ]
 
     return PortfolioResponse(positions=positions)
+
+
+@router.post("/portfolio/analyse", response_model=PortfolioAnalysisResponse)
+async def analyse(
+        request: PortfolioAnalysisRequest,
+        llm_service: LLMService = Depends(get_llm_service)
+) -> PortfolioAnalysisResponse:
+    response = await llm_service.analyse(request.prompt)
+    return PortfolioAnalysisResponse(response=response)
 
 # todo: remove. Just for local development
 # if __name__ == '__main__':
