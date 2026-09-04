@@ -1,3 +1,5 @@
+from textwrap import dedent
+
 from fastapi.testclient import TestClient
 
 from portfolio_analyzer.api.dependencies import get_valuator, get_portfolio_repository, get_llm_service
@@ -6,7 +8,6 @@ from portfolio_analyzer.domain.stock import Stock
 from portfolio_analyzer.domain.valued_position import ValuedPosition
 from portfolio_analyzer.exceptions.price_service import PriceServiceError, InvalidSymbolError
 from portfolio_analyzer.main import app
-from portfolio_analyzer.repositories.in_memory_portfolio_repository import InMemoryPortfolioRepository
 
 
 class FakeValuator:
@@ -45,7 +46,7 @@ class FakeValuatorWithKnownPrices:
 
 class FakeLLMService:
     async def analyse(self, prompt: str) -> str:
-        return "Your portfolio looks well diversified."
+        return prompt
 
 
 client = TestClient(app)
@@ -321,23 +322,43 @@ def test_create_portfolio_then_get_portfolio_value(
         app.dependency_overrides.clear()
 
 
-def test_portfolio_analyse_returns_expected_response():
+def test_portfolio_analyse_returns_expected_response(
+        portfolio_repository,
+):
+    app.dependency_overrides[get_portfolio_repository] = lambda: portfolio_repository
     app.dependency_overrides[get_llm_service] = lambda: FakeLLMService()
 
-    data = {"prompt": "Analyse my portfolio"}
+    portfolio = (Portfolio()
+                 .add_position(Stock(symbol="AAPL", shares=10))
+                 .add_position(Stock(symbol="NVDA", shares=2)))
+
+    portfolio_repository.save(portfolio)
+
+    data = {"prompt": "Is my portfolio diversified?"}
+
+    expected_json_response = {f"response": dedent("""\
+        Here's the user's portfolio:
+        
+        AAPL: 10 shares
+        NVDA: 2 shares
+        
+        User's question:
+        Is my portfolio diversified?
+        
+        Analyse the portfolio and answer the user's question""")}
+
     try:
 
         response = client.post("/portfolio/analyse", json=data)
 
         assert response.status_code == 200
-        assert response.json() == {"response": "Your portfolio looks well diversified."}
+        assert response.json() == expected_json_response
 
     finally:
         app.dependency_overrides.clear()
 
 
 def test_portfolio_analyse_when_prompt_is_missing_returns_validation_error():
-
     data = {"another_field": "another value"}
 
     response = client.post("/portfolio/analyse", json=data)
@@ -352,7 +373,6 @@ def test_portfolio_analyse_when_prompt_is_missing_returns_validation_error():
 
 
 def test_portfolio_analyse_when_prompt_is_invalid_returns_validation_error():
-
     data = {"prompt": 1234}
 
     response = client.post("/portfolio/analyse", json=data)

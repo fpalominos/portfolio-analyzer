@@ -10,6 +10,8 @@ from portfolio_analyzer.models.portfolio import PortfolioCreateRequest, \
 from portfolio_analyzer.models.portfolio_value import PortfolioValueResponse
 from portfolio_analyzer.repositories.portfolio_repository import PortfolioRepository
 from portfolio_analyzer.services.llm_service import LLMService
+from portfolio_analyzer.services.portfolio_context_builder import portfolio_to_context
+from portfolio_analyzer.services.portfolio_prompt import build_portfolio_analysis_prompt
 from portfolio_analyzer.services.portfolio_valuator import PortfolioValuator
 from portfolio_analyzer.models.llm_service import PortfolioAnalysisRequest, PortfolioAnalysisResponse
 
@@ -73,10 +75,18 @@ def create_portfolio(
 @router.post("/portfolio/analyse", response_model=PortfolioAnalysisResponse)
 async def analyse(
         request: PortfolioAnalysisRequest,
-        llm_service: LLMService = Depends(get_llm_service)
+        repository: PortfolioRepository = Depends(get_portfolio_repository),
+        llm_service: LLMService = Depends(get_llm_service),
 ) -> PortfolioAnalysisResponse:
-    response = await llm_service.analyse(request.prompt)
-    return PortfolioAnalysisResponse(response=response)
+    portfolio = repository.get()
+
+    if portfolio is None:
+        raise PortfolioNotFoundError("Portfolio not found")
+
+    portfolio_context = portfolio_to_context(portfolio)
+    prompt = build_portfolio_analysis_prompt(portfolio_context, request.prompt)
+    analysis = await llm_service.analyse(prompt)
+    return PortfolioAnalysisResponse(response=analysis)
 
 # todo: remove. Just for local development
 # if __name__ == '__main__':
