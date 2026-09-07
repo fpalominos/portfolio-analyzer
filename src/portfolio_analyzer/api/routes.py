@@ -75,6 +75,7 @@ def create_portfolio(
 @router.post("/portfolio/analyse", response_model=PortfolioAnalysisResponse)
 async def analyse(
         request: PortfolioAnalysisRequest,
+        valuator: PortfolioValuator = Depends(get_valuator),
         repository: PortfolioRepository = Depends(get_portfolio_repository),
         llm_service: LLMService = Depends(get_llm_service),
 ) -> PortfolioAnalysisResponse:
@@ -83,7 +84,8 @@ async def analyse(
     if portfolio is None:
         raise PortfolioNotFoundError("Portfolio not found")
 
-    portfolio_context = portfolio_to_context(portfolio)
+    positions = await valuator.value_positions(portfolio)
+    portfolio_context = portfolio_to_context(positions)
     prompt = build_portfolio_analysis_prompt(portfolio_context, request.prompt)
     analysis = await llm_service.analyse(prompt)
     return PortfolioAnalysisResponse(response=analysis)

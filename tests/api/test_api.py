@@ -326,11 +326,12 @@ def test_portfolio_analyse_returns_expected_response(
         portfolio_repository,
 ):
     app.dependency_overrides[get_portfolio_repository] = lambda: portfolio_repository
+    app.dependency_overrides[get_valuator] = lambda: FakeValuatorWithKnownPrices()
     app.dependency_overrides[get_llm_service] = lambda: FakeLLMService()
 
     portfolio = (Portfolio()
-                 .add_position(Stock(symbol="AAPL", shares=10))
-                 .add_position(Stock(symbol="NVDA", shares=2)))
+                 .add_position(Stock(symbol="NVDA", shares=10))
+                 .add_position(Stock(symbol="MSFT", shares=20)))
 
     portfolio_repository.save(portfolio)
 
@@ -339,8 +340,8 @@ def test_portfolio_analyse_returns_expected_response(
     expected_json_response = {f"response": dedent("""\
         Here's the user's portfolio:
         
-        AAPL: 10 shares
-        NVDA: 2 shares
+        NVDA: 10 shares, current price: $10.00, market value: $100.00
+        MSFT: 20 shares, current price: $20.00, market value: $400.00
         
         User's question:
         Is my portfolio diversified?

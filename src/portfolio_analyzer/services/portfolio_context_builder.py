@@ -1,17 +1,9 @@
-from portfolio_analyzer.domain.portfolio import Portfolio
-from portfolio_analyzer.domain.stock import Stock
+from portfolio_analyzer.domain.valued_position import ValuedPosition
 
 
-def portfolio_to_context(portfolio: Portfolio) -> str:
-    return "\n".join(f"{position.symbol}: {position.shares} shares"
-                   for position in portfolio.positions
-                   )
-
-
-if __name__ == "__main__":
-    port = (Portfolio()
-            .add_position(stock=Stock("APPL", 1))
-            .add_position(stock=Stock("NVDA", 2))
-            )
-
-    print(portfolio_to_context(port))
+def portfolio_to_context(positions: tuple[ValuedPosition, ...]) -> str:
+    return "\n".join(
+        f"{position.stock.symbol
+        }: {position.stock.shares} shares, current price: ${position.current_price:.2f}, market value: ${position.market_value:.2f}"
+        for position in positions
+    )
