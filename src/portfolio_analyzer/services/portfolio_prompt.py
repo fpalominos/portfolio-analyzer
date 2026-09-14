@@ -7,7 +7,12 @@ def build_portfolio_analysis_prompt(
         f"{portfolio_context}\n\n"
         "User's question:\n"
         f"{user_prompt}\n\n"
-        "Analyse the portfolio and answer the user's question"
+        "Analyse the portfolio and answer the user's question.\n\n"
+        "The response should be structured as follows:\n\n"
+        "summary → concise overall assessment\n"
+        "diversification → concentration and diversification\n"
+        "risks → specific risks identified in the portfolio\n"
+        "recommendations → actionable suggestions"
     )
 
 

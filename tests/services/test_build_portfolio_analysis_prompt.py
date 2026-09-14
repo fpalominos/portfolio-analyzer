@@ -12,7 +12,14 @@ def test_build_portfolio_analysis_prompt_includes_portfolio_and_user_question():
         User's question:
         Is my portfolio diversified?
         
-        Analyse the portfolio and answer the user's question""")
+        Analyse the portfolio and answer the user's question.
+        
+        The response should be structured as follows:
+        
+        summary → concise overall assessment
+        diversification → concentration and diversification
+        risks → specific risks identified in the portfolio
+        recommendations → actionable suggestions""")
 
     portfolio_context = "AAPL: 10 shares\nNVDA: 2 shares"
     user_question = "Is my portfolio diversified?"

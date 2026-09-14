@@ -88,7 +88,7 @@ async def analyse(
     portfolio_context = portfolio_to_context(positions)
     prompt = build_portfolio_analysis_prompt(portfolio_context, request.prompt)
     analysis = await llm_service.analyse(prompt)
-    return PortfolioAnalysisResponse(response=analysis)
+    return PortfolioAnalysisResponse(analysis=analysis)
 
 # todo: remove. Just for local development
 # if __name__ == '__main__':

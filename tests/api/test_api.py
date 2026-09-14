@@ -1,5 +1,3 @@
-from textwrap import dedent
-
 from fastapi.testclient import TestClient
 
 from portfolio_analyzer.api.dependencies import get_valuator, get_portfolio_repository, get_llm_service
@@ -8,6 +6,7 @@ from portfolio_analyzer.domain.stock import Stock
 from portfolio_analyzer.domain.valued_position import ValuedPosition
 from portfolio_analyzer.exceptions.price_service import PriceServiceError, InvalidSymbolError
 from portfolio_analyzer.main import app
+from portfolio_analyzer.models.portfolio_analysis import PortfolioAnalysis
 
 
 class FakeValuator:
@@ -45,8 +44,46 @@ class FakeValuatorWithKnownPrices:
 
 
 class FakeLLMService:
-    async def analyse(self, prompt: str) -> str:
-        return prompt
+
+    def __init__(self, portfolio_analysis: PortfolioAnalysis) -> None:
+        self.portfolio_analysis = portfolio_analysis
+
+    async def analyse(self, prompt: str) -> PortfolioAnalysis:
+        return self.portfolio_analysis
+
+
+def test_portfolio_analyse_returns_expected_response(
+        portfolio_repository,
+        portfolio_analysis,
+):
+    app.dependency_overrides[get_portfolio_repository] = lambda: portfolio_repository
+    app.dependency_overrides[get_valuator] = lambda: FakeValuatorWithKnownPrices()
+    app.dependency_overrides[get_llm_service] = lambda: FakeLLMService(portfolio_analysis)
+
+    portfolio = (Portfolio()
+                 .add_position(Stock(symbol="NVDA", shares=10))
+                 .add_position(Stock(symbol="MSFT", shares=20)))
+
+    portfolio_repository.save(portfolio)
+
+    data = {"prompt": "Is my portfolio diversified?"}
+
+    expected_json_response = {'analysis': {'diversification': 'test diversification',
+                                           'recommendations': ['recommendation 1', 'recommendation 2'],
+                                           'risks': ['test risks1', 'test risk 2'],
+                                           'summary': 'test summary'
+                                           }
+                              }
+
+    try:
+
+        response = client.post("/portfolio/analyse", json=data)
+
+        assert response.status_code == 200
+        assert response.json() == expected_json_response
+
+    finally:
+        app.dependency_overrides.clear()
 
 
 client = TestClient(app)
@@ -317,43 +354,6 @@ def test_create_portfolio_then_get_portfolio_value(
         assert value_response.status_code == 200
         assert value_response.json() == {"total_value": 500.0}
 
-
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_portfolio_analyse_returns_expected_response(
-        portfolio_repository,
-):
-    app.dependency_overrides[get_portfolio_repository] = lambda: portfolio_repository
-    app.dependency_overrides[get_valuator] = lambda: FakeValuatorWithKnownPrices()
-    app.dependency_overrides[get_llm_service] = lambda: FakeLLMService()
-
-    portfolio = (Portfolio()
-                 .add_position(Stock(symbol="NVDA", shares=10))
-                 .add_position(Stock(symbol="MSFT", shares=20)))
-
-    portfolio_repository.save(portfolio)
-
-    data = {"prompt": "Is my portfolio diversified?"}
-
-    expected_json_response = {f"response": dedent("""\
-        Here's the user's portfolio:
-        
-        NVDA: 10 shares, current price: $10.00, market value: $100.00
-        MSFT: 20 shares, current price: $20.00, market value: $400.00
-        
-        User's question:
-        Is my portfolio diversified?
-        
-        Analyse the portfolio and answer the user's question""")}
-
-    try:
-
-        response = client.post("/portfolio/analyse", json=data)
-
-        assert response.status_code == 200
-        assert response.json() == expected_json_response
 
     finally:
         app.dependency_overrides.clear()
