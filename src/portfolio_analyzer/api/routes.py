@@ -5,6 +5,7 @@ from portfolio_analyzer.api.dependencies import get_valuator, get_portfolio_repo
 from portfolio_analyzer.domain.portfolio import Portfolio
 from portfolio_analyzer.domain.stock import Stock
 from portfolio_analyzer.exceptions.portfolio import PortfolioNotFoundError
+from portfolio_analyzer.models.llm_service import PortfolioAnalysisRequest, PortfolioAnalysisResponse
 from portfolio_analyzer.models.portfolio import PortfolioCreateRequest, \
     PortfolioPositionResponse, PortfolioResponse
 from portfolio_analyzer.models.portfolio_value import PortfolioValueResponse
@@ -13,7 +14,6 @@ from portfolio_analyzer.services.llm_service import LLMService
 from portfolio_analyzer.services.portfolio_context_builder import portfolio_to_context
 from portfolio_analyzer.services.portfolio_prompt import build_portfolio_analysis_prompt
 from portfolio_analyzer.services.portfolio_valuator import PortfolioValuator
-from portfolio_analyzer.models.llm_service import PortfolioAnalysisRequest, PortfolioAnalysisResponse
 
 router = APIRouter()
 
@@ -85,7 +85,8 @@ async def analyse(
         raise PortfolioNotFoundError("Portfolio not found")
 
     positions = await valuator.value_positions(portfolio)
-    portfolio_context = portfolio_to_context(positions)
+    allocations = PortfolioAnalytics.allocation(positions)
+    portfolio_context = portfolio_to_context(allocations)
     prompt = build_portfolio_analysis_prompt(portfolio_context, request.prompt)
     analysis = await llm_service.analyse(prompt)
     return PortfolioAnalysisResponse(analysis=analysis)

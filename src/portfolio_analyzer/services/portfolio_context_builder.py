@@ -1,9 +1,8 @@
-from portfolio_analyzer.domain.valued_position import ValuedPosition
+from portfolio_analyzer.domain.allocation import Allocation
 
 
-def portfolio_to_context(positions: tuple[ValuedPosition, ...]) -> str:
+def portfolio_to_context(allocations: tuple[Allocation, ...]) -> str:
     return "\n".join(
-        f"{position.stock.symbol
-        }: {position.stock.shares} shares, current price: ${position.current_price:.2f}, market value: ${position.market_value:.2f}"
-        for position in positions
+        f"{allocation.position.stock.symbol}: {allocation.position.stock.shares} shares, current price: ${allocation.position.current_price:.2f}, market value: ${allocation.position.market_value:.2f}, allocation: {allocation.percentage:.2f}%"
+        for allocation in allocations
     )
