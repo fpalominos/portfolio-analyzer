@@ -86,7 +86,8 @@ async def analyse(
 
     positions = await valuator.value_positions(portfolio)
     allocations = PortfolioAnalytics.allocation(positions)
-    portfolio_context = portfolio_to_context(allocations)
+    total_value = PortfolioAnalytics.total_value(positions)
+    portfolio_context = portfolio_to_context(allocations, total_value)
     prompt = build_portfolio_analysis_prompt(portfolio_context, request.prompt)
     analysis = await llm_service.analyse(prompt)
     return PortfolioAnalysisResponse(analysis=analysis)
