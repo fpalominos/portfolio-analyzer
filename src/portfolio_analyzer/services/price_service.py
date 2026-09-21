@@ -46,7 +46,7 @@ class PriceService:
             ) from e
         except httpx.RequestError as e:
             raise PriceServiceError(
-                f"Could not connect to Finnhub."
+                    f"Could not connect to Finnhub."
             ) from e
 
     async def get_price(

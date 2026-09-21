@@ -30,8 +30,14 @@ def get_portfolio_repository() -> PortfolioRepository:
     return portfolio_repository
 
 
-def get_llm_service() -> LLMService:
+async def get_llm_service():
     settings = Settings()
 
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
-    return LLMService(client=client)
+    async with httpx.AsyncClient(timeout=5) as openai_client:
+        price_service = PriceService(
+            openai_client,
+            settings.finnhub_api_key,
+        )
+
+        openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
+        yield LLMService(client=openai_client, price_service=price_service)
