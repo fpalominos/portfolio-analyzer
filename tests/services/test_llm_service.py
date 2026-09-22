@@ -92,6 +92,8 @@ async def test_analyse_handles_stock_price_tool_call(mock_get_stock_price):
 
     mock_get_stock_price.assert_awaited_once_with("NVDA", price_service)
 
+    assert client.responses.parse.await_count == 2
+
     second_call = client.responses.parse.await_args_list[1]
 
     assert second_call.kwargs["input"] == [
