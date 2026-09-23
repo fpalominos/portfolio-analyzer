@@ -9,8 +9,8 @@ from portfolio_analyzer.services.portfolio_context_builder import portfolio_to_c
 
 def test_portfolio_to_context_returns_the_expected_result():
     allocations: tuple[Allocation, ...] = (
-        Allocation(position=ValuedPosition(stock=Stock("AAPL", 10), current_price=210.00), percentage=10.0),
-        Allocation(position=ValuedPosition(stock=Stock("NVDA", 2), current_price=170.00), percentage=90.0),
+        Allocation(position=ValuedPosition(stock=Stock("AAPL", 10), current_price=210.00), weight=0.10),
+        Allocation(position=ValuedPosition(stock=Stock("NVDA", 2), current_price=170.00), weight=0.90),
     )
 
     total_value = PortfolioAnalytics.total_value(tuple(allocation.position for allocation in allocations))
@@ -28,7 +28,7 @@ def test_portfolio_to_context_returns_the_expected_result():
 
 def test_portfolio_to_context_with_single_position():
     allocations: tuple[Allocation, ...] = (
-        Allocation(position=ValuedPosition(stock=Stock("AAPL", 10), current_price=210.00), percentage=100.0),
+        Allocation(position=ValuedPosition(stock=Stock("AAPL", 10), current_price=210.00), weight=1.0),
     )
 
     expected_context = "Total Value: $2100.00\n\nAAPL: 10 shares, current price: $210.00, market value: $2100.00, allocation: 100.00%"

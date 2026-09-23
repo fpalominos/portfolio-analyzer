@@ -52,7 +52,7 @@ def test_allocation_with_single_position_returns_100_percent():
 
     allocations = PortfolioAnalytics.allocation(positions)
     assert len(allocations) == 1
-    assert allocations[0].percentage == 1.0
+    assert allocations[0].weight == 1.0
 
 
 def test_allocation_with_equal_values_returns_equal_percentages():
@@ -63,5 +63,5 @@ def test_allocation_with_equal_values_returns_equal_percentages():
 
     allocations = PortfolioAnalytics.allocation(positions)
     assert len(allocations) == 2
-    assert allocations[0].percentage == 0.5
-    assert allocations[1].percentage == 0.5
+    assert allocations[0].weight == 0.5
+    assert allocations[1].weight == 0.5
