@@ -47,6 +47,10 @@ class LLMService:
                         model="gpt-5.6-luna",
                         input=[tool_output],
                         tools=[get_stock_price_tool()],
+                        # Link this request to the previous response so OpenAI can associate the tool result
+                        # with its function call and continue the response chain, even if other requests
+                        # are handled by the service in between.
+                        previous_response_id=response.id,
                     )
 
             parsed: PortfolioAnalysis | None = final_response.output_parsed

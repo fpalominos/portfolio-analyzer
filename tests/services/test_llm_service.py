@@ -64,6 +64,7 @@ async def test_analyse_handles_stock_price_tool_call(mock_get_stock_price):
 
     fake_response = Mock()
     fake_response.output = [tool_call]
+    fake_response.id = "response_123"
 
     assert fake_response.output[0].type == "function_call"
     assert fake_response.output[0].name == "get_stock_price"
@@ -103,6 +104,8 @@ async def test_analyse_handles_stock_price_tool_call(mock_get_stock_price):
             "output": "250.0",
         }
     ]
+
+    assert second_call.kwargs["previous_response_id"] == "response_123"
 
     assert result == PortfolioAnalysis(
         summary="test summary",
