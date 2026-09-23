@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch, call
 
 import pytest
 from openai import OpenAIError
@@ -102,6 +102,104 @@ async def test_analyse_handles_stock_price_tool_call(mock_get_stock_price):
             "type": "function_call_output",
             "call_id": "call_123",
             "output": "250.0",
+        }
+    ]
+
+    assert second_call.kwargs["previous_response_id"] == "response_123"
+
+    assert result == PortfolioAnalysis(
+        summary="test summary",
+        diversification="test diversification",
+        risks=["test risk"],
+        recommendations=["test recommendation"],
+    )
+
+
+@pytest.mark.asyncio
+@patch("portfolio_analyzer.services.llm_service.get_stock_price")
+async def test_analyse_handles_multiple_stock_price_tool_calls(mock_get_stock_price):
+    client = AsyncMock()
+
+    tool_call_1 = Mock()
+    tool_call_1.type = "function_call"
+    tool_call_1.name = "get_stock_price"
+    tool_call_1.arguments = '{"symbol": "NVDA"}'
+    tool_call_1.call_id = "call_1"
+
+    tool_call_2 = Mock()
+    tool_call_2.type = "function_call"
+    tool_call_2.name = "get_stock_price"
+    tool_call_2.arguments = '{"symbol": "AAPL"}'
+    tool_call_2.call_id = "call_2"
+
+    tool_call_3 = Mock()
+    tool_call_3.type = "function_call"
+    tool_call_3.name = "get_stock_price"
+    tool_call_3.arguments = '{"symbol": "MSFT"}'
+    tool_call_3.call_id = "call_3"
+
+    fake_response = Mock()
+    fake_response.output = [tool_call_1, tool_call_2, tool_call_3]
+    fake_response.id = "response_123"
+
+    final_response = Mock()
+    final_response.output_parsed = PortfolioAnalysis(
+        summary="test summary",
+        diversification="test diversification",
+        risks=["test risk"],
+        recommendations=["test recommendation"],
+    )
+
+    client.responses.parse.side_effect = [
+        fake_response,
+        final_response,
+    ]
+
+    price_service = Mock(spec=PriceService)
+
+    async def get_stock_price_side_effect(symbol, _price_service):
+        prices = {
+            "NVDA": 250.00,
+            "AAPL": 260.00,
+            "MSFT": 270.00,
+        }
+        return prices[symbol]
+
+    mock_get_stock_price.side_effect = get_stock_price_side_effect
+
+    mock_get_stock_price.side_effect = [250.00, 260.00, 270.00]
+
+    service = LLMService(client, price_service)
+
+    result = await service.analyse("What is the current price of Nvidia, Apple and MSFT?")
+
+    assert mock_get_stock_price.await_count == 3
+
+    assert mock_get_stock_price.await_args_list == [
+        call("NVDA", price_service),
+        call("AAPL", price_service),
+        call("MSFT", price_service),
+    ]
+
+    assert client.responses.parse.await_count == 2
+
+    second_call = client.responses.parse.await_args_list[1]
+
+    assert second_call.kwargs["input"] == [
+        {
+            "type": "function_call_output",
+            "call_id": "call_1",
+            "output": "250.0",
+        },
+        {
+            "type": "function_call_output",
+            "call_id": "call_2",
+            "output": "260.0",
+        },
+        {
+            "type": "function_call_output",
+            "call_id": "call_3",
+            "output": "270.0",
         }
     ]
 

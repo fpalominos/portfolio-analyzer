@@ -26,6 +26,8 @@ class LLMService:
 
             final_response = response
 
+            tool_outputs = []
+
             for item in response.output:
                 if getattr(item, "type", None) == "function_call":
                     arguments = json.loads(str(item.arguments))
@@ -36,22 +38,25 @@ class LLMService:
                         self.price_service,
                     )
 
-                    tool_output = {
-                        "type": "function_call_output",
-                        "call_id": item.call_id,
-                        "output": str(tool_result),
-                    }
-
-                    final_response = await self.client.responses.parse(
-                        text_format=PortfolioAnalysis,
-                        model="gpt-5.6-luna",
-                        input=[tool_output],
-                        tools=[get_stock_price_tool()],
-                        # Link this request to the previous response so OpenAI can associate the tool result
-                        # with its function call and continue the response chain, even if other requests
-                        # are handled by the service in between.
-                        previous_response_id=response.id,
+                    tool_outputs.append(
+                        {
+                            "type": "function_call_output",
+                            "call_id": item.call_id,
+                            "output": str(tool_result),
+                        }
                     )
+
+            if tool_outputs:
+                final_response = await self.client.responses.parse(
+                    text_format=PortfolioAnalysis,
+                    model="gpt-5.6-luna",
+                    input=tool_outputs,
+                    tools=[get_stock_price_tool()],
+                    # Link this request to the previous response so OpenAI can associate the tool result
+                    # with its function call and continue the response chain, even if other requests
+                    # are handled by the service in between.
+                    previous_response_id=response.id,
+                )
 
             parsed: PortfolioAnalysis | None = final_response.output_parsed
 
