@@ -1,5 +1,7 @@
 import asyncio
 import json
+from types import CoroutineType
+from typing import Any
 
 from openai import AsyncOpenAI, OpenAIError
 from openai.types.responses import ParsedResponse
@@ -27,22 +29,7 @@ class LLMService:
 
             final_response = response
 
-            tool_result_tasks = []
-            call_ids = []
-
-            for item in response.output:
-                if getattr(item, "type", None) == "function_call":
-                    arguments = json.loads(str(item.arguments))
-                    symbol = arguments["symbol"]
-
-                    call_ids.append(item.call_id)
-
-                    task = get_stock_price(
-                        symbol,
-                        self.price_service,
-                    )
-
-                    tool_result_tasks.append(task)
+            call_ids, tool_result_tasks = self._extract_tool_calls(response)
 
             if tool_result_tasks:
                 tool_results = await asyncio.gather(*tool_result_tasks)
@@ -79,3 +66,23 @@ class LLMService:
             raise LLMServiceError(
                 "LLM service error."
             ) from exc
+
+    def _extract_tool_calls(self, response: ParsedResponse[PortfolioAnalysis]) -> tuple[
+        list[str], list]:
+        tool_result_tasks = []
+        call_ids = []
+
+        for item in response.output:
+            if getattr(item, "type", None) == "function_call":
+                arguments = json.loads(str(item.arguments))
+                symbol = arguments["symbol"]
+
+                call_ids.append(item.call_id)
+
+                task = get_stock_price(
+                    symbol,
+                    self.price_service,
+                )
+
+                tool_result_tasks.append(task)
+        return call_ids, tool_result_tasks
