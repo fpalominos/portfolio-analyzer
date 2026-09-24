@@ -1,7 +1,5 @@
 import asyncio
 import json
-from types import CoroutineType
-from typing import Any
 
 from openai import AsyncOpenAI, OpenAIError
 from openai.types.responses import ParsedResponse
@@ -32,15 +30,7 @@ class LLMService:
             call_ids, tool_result_tasks = self._extract_tool_calls(response)
 
             if tool_result_tasks:
-                tool_results = await asyncio.gather(*tool_result_tasks)
-                tool_outputs = [
-                    {
-                        "type": "function_call_output",
-                        "call_id": call_id,
-                        "output": str(tool_result),
-                    }
-                    for tool_result, call_id in zip(tool_results, call_ids)
-                ]
+                tool_outputs = await self._build_tool_outputs(call_ids, tool_result_tasks)
 
                 final_response = await self.client.responses.parse(
                     text_format=PortfolioAnalysis,
@@ -66,6 +56,18 @@ class LLMService:
             raise LLMServiceError(
                 "LLM service error."
             ) from exc
+
+    async def _build_tool_outputs(self, call_ids: list[str], tool_result_tasks: list) -> list[dict[str, str]]:
+        tool_results = await asyncio.gather(*tool_result_tasks)
+        tool_outputs = [
+            {
+                "type": "function_call_output",
+                "call_id": call_id,
+                "output": str(tool_result),
+            }
+            for tool_result, call_id in zip(tool_results, call_ids)
+        ]
+        return tool_outputs
 
     def _extract_tool_calls(self, response: ParsedResponse[PortfolioAnalysis]) -> tuple[
         list[str], list]:
