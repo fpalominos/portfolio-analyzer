@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from openai import AsyncOpenAI, OpenAIError
@@ -26,27 +27,34 @@ class LLMService:
 
             final_response = response
 
-            tool_outputs = []
+            tool_result_tasks = []
+            call_ids = []
 
             for item in response.output:
                 if getattr(item, "type", None) == "function_call":
                     arguments = json.loads(str(item.arguments))
                     symbol = arguments["symbol"]
 
-                    tool_result = await get_stock_price(
+                    call_ids.append(item.call_id)
+
+                    task = get_stock_price(
                         symbol,
                         self.price_service,
                     )
 
-                    tool_outputs.append(
-                        {
-                            "type": "function_call_output",
-                            "call_id": item.call_id,
-                            "output": str(tool_result),
-                        }
-                    )
+                    tool_result_tasks.append(task)
 
-            if tool_outputs:
+            if tool_result_tasks:
+                tool_results = await asyncio.gather(*tool_result_tasks)
+                tool_outputs = [
+                    {
+                        "type": "function_call_output",
+                        "call_id": call_id,
+                        "output": str(tool_result),
+                    }
+                    for tool_result, call_id in zip(tool_results, call_ids)
+                ]
+
                 final_response = await self.client.responses.parse(
                     text_format=PortfolioAnalysis,
                     model="gpt-5.6-luna",
