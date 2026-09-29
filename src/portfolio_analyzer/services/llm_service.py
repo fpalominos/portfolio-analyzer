@@ -25,14 +25,18 @@ class LLMService:
                 tools=[get_stock_price_tool()]
             )
 
-            final_response = response
+            while True:
+                call_ids, tool_result_tasks = self._extract_tool_calls(response)
 
-            call_ids, tool_result_tasks = self._extract_tool_calls(response)
+                if not tool_result_tasks:
+                    break
 
-            if tool_result_tasks:
-                tool_outputs = await self._build_tool_outputs(call_ids, tool_result_tasks)
+                tool_outputs = await self._build_tool_outputs(
+                    call_ids,
+                    tool_result_tasks,
+                )
 
-                final_response = await self.client.responses.parse(
+                response = await self.client.responses.parse(
                     text_format=PortfolioAnalysis,
                     model="gpt-5.6-luna",
                     input=tool_outputs,
@@ -43,7 +47,7 @@ class LLMService:
                     previous_response_id=response.id,
                 )
 
-            parsed: PortfolioAnalysis | None = final_response.output_parsed
+            parsed: PortfolioAnalysis | None = response.output_parsed
 
             if parsed is None:
                 raise LLMServiceError(

@@ -67,10 +67,9 @@ async def test_analyse_handles_stock_price_tool_call(mock_get_stock_price):
     fake_response.id = "response_123"
 
     assert fake_response.output[0].type == "function_call"
-    assert fake_response.output[0].name == "get_stock_price"
-    assert fake_response.output[0].arguments == '{"symbol": "NVDA"}'
 
     final_response = Mock()
+    final_response.output = []
     final_response.output_parsed = PortfolioAnalysis(
         summary="test summary",
         diversification="test diversification",
@@ -143,6 +142,7 @@ async def test_analyse_handles_multiple_stock_price_tool_calls(mock_get_stock_pr
     fake_response.id = "response_123"
 
     final_response = Mock()
+    final_response.output = []
     final_response.output_parsed = PortfolioAnalysis(
         summary="test summary",
         diversification="test diversification",
@@ -166,8 +166,6 @@ async def test_analyse_handles_multiple_stock_price_tool_calls(mock_get_stock_pr
         return prices[symbol]
 
     mock_get_stock_price.side_effect = get_stock_price_side_effect
-
-    mock_get_stock_price.side_effect = [250.00, 260.00, 270.00]
 
     service = LLMService(client, price_service)
 
@@ -204,6 +202,99 @@ async def test_analyse_handles_multiple_stock_price_tool_calls(mock_get_stock_pr
     ]
 
     assert second_call.kwargs["previous_response_id"] == "response_123"
+
+    assert result == PortfolioAnalysis(
+        summary="test summary",
+        diversification="test diversification",
+        risks=["test risk"],
+        recommendations=["test recommendation"],
+    )
+
+@pytest.mark.asyncio
+@patch("portfolio_analyzer.services.llm_service.get_stock_price")
+async def test_analyse_handles_multiple_tool_call_rounds(mock_get_stock_price):
+    client = AsyncMock()
+
+    tool_call_1 = Mock()
+    tool_call_1.type = "function_call"
+    tool_call_1.name = "get_stock_price"
+    tool_call_1.arguments = '{"symbol": "NVDA"}'
+    tool_call_1.call_id = "call_1"
+
+    tool_call_2 = Mock()
+    tool_call_2.type = "function_call"
+    tool_call_2.name = "get_stock_price"
+    tool_call_2.arguments = '{"symbol": "AAPL"}'
+    tool_call_2.call_id = "call_2"
+
+    fake_response_1 = Mock()
+    fake_response_1.output = [tool_call_1]
+    fake_response_1.id = "response_123"
+
+    fake_response_2 = Mock()
+    fake_response_2.output = [tool_call_2]
+    fake_response_2.id = "response_234"
+
+    final_response = Mock()
+    final_response.output = []
+    final_response.output_parsed = PortfolioAnalysis(
+        summary="test summary",
+        diversification="test diversification",
+        risks=["test risk"],
+        recommendations=["test recommendation"],
+    )
+
+    client.responses.parse.side_effect = [
+        fake_response_1,
+        fake_response_2,
+        final_response,
+    ]
+
+    price_service = Mock(spec=PriceService)
+
+    async def get_stock_price_side_effect(symbol, _price_service):
+        prices = {
+            "NVDA": 250.00,
+            "AAPL": 260.00
+        }
+        return prices[symbol]
+
+    mock_get_stock_price.side_effect = get_stock_price_side_effect
+
+    service = LLMService(client, price_service)
+
+    result = await service.analyse("What is the current price of Nvidia and Apple?")
+
+    assert mock_get_stock_price.await_count == 2
+
+    assert mock_get_stock_price.await_args_list == [
+        call("NVDA", price_service),
+        call("AAPL", price_service)
+    ]
+
+    assert client.responses.parse.await_count == 3
+
+    second_call = client.responses.parse.await_args_list[1]
+    third_call = client.responses.parse.await_args_list[2]
+
+    assert second_call.kwargs["input"] == [
+        {
+            "type": "function_call_output",
+            "call_id": "call_1",
+            "output": "250.0",
+        }
+    ]
+
+    assert third_call.kwargs["input"] == [
+        {
+            "type": "function_call_output",
+            "call_id": "call_2",
+            "output": "260.0",
+        }
+    ]
+
+    assert second_call.kwargs["previous_response_id"] == "response_123"
+    assert third_call.kwargs["previous_response_id"] == "response_234"
 
     assert result == PortfolioAnalysis(
         summary="test summary",
