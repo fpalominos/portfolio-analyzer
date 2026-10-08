@@ -1,5 +1,6 @@
 import httpx
 
+from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
 from portfolio_analyzer.config import Settings
 from portfolio_analyzer.repositories.in_memory_portfolio_repository import InMemoryPortfolioRepository
 from portfolio_analyzer.repositories.portfolio_repository import PortfolioRepository
@@ -9,7 +10,7 @@ from portfolio_analyzer.services.price_service import PriceService
 from openai import AsyncOpenAI
 
 
-async def get_valuator():
+async def get_valuator() :
     settings = Settings()
 
     async with httpx.AsyncClient(timeout=5) as client:
@@ -39,5 +40,10 @@ async def get_llm_service():
             settings.finnhub_api_key,
         )
 
+        valuator = get_valuator()
+
+        portfolio_analytics = PortfolioAnalytics()
+
         openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
-        yield LLMService(client=openai_client, price_service=price_service)
+        yield LLMService(client=openai_client, price_service=price_service, portfolio_repository=portfolio_repository,
+                         portfolio_valuator=valuator, portfolio_analytics=portfolio_analytics)

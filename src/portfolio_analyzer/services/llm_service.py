@@ -4,17 +4,24 @@ import json
 from openai import AsyncOpenAI, OpenAIError
 from openai.types.responses import ParsedResponse
 
+from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
 from portfolio_analyzer.exceptions.llm_service import LLMServiceError
 from portfolio_analyzer.models.portfolio_analysis import PortfolioAnalysis
+from portfolio_analyzer.repositories.portfolio_repository import PortfolioRepository
+from portfolio_analyzer.services.portfolio_valuator import PortfolioValuator
 from portfolio_analyzer.services.price_service import PriceService
-from portfolio_analyzer.tools.definitions import get_stock_price_tool
-from portfolio_analyzer.tools.stock_tools import get_stock_price
+from portfolio_analyzer.tools.definitions import get_stock_price_tool, get_allocation_tool
+from portfolio_analyzer.tools.stock_tools import get_stock_price, get_allocation
 
 
 class LLMService:
-    def __init__(self, client: AsyncOpenAI, price_service: PriceService) -> None:
+    def __init__(self, client: AsyncOpenAI, price_service: PriceService, portfolio_repository: PortfolioRepository,
+                 portfolio_valuator: PortfolioValuator, portfolio_analytics: PortfolioAnalytics) -> None:
         self.client = client
         self.price_service = price_service
+        self.portfolio_repository = portfolio_repository
+        self.portfolio_valuator = portfolio_valuator
+        self.portfolio_analytics = portfolio_analytics
 
     async def analyse(self, prompt: str) -> PortfolioAnalysis:
         try:
@@ -22,7 +29,7 @@ class LLMService:
                 text_format=PortfolioAnalysis,
                 model="gpt-5.6-luna",
                 input=prompt,
-                tools=[get_stock_price_tool()]
+                tools=[get_stock_price_tool(), get_allocation_tool()]
             )
 
             while True:
@@ -40,7 +47,7 @@ class LLMService:
                     text_format=PortfolioAnalysis,
                     model="gpt-5.6-luna",
                     input=tool_outputs,
-                    tools=[get_stock_price_tool()],
+                    tools=[get_stock_price_tool(), get_allocation_tool()],
                     # Link this request to the previous response so OpenAI can associate the tool result
                     # with its function call and continue the response chain, even if other requests
                     # are handled by the service in between.
@@ -79,7 +86,7 @@ class LLMService:
         call_ids = []
 
         for item in response.output:
-            if getattr(item, "type", None) == "function_call":
+            if getattr(item, "type", None) == "function_call" and getattr(item, "name", None) == "get_stock_price":
                 arguments = json.loads(str(item.arguments))
                 symbol = arguments["symbol"]
 
@@ -91,4 +98,15 @@ class LLMService:
                 )
 
                 tool_result_tasks.append(task)
+
+            elif getattr(item, "type", None) == "function_call" and getattr(item, "name", None) == "get_allocation":
+                call_ids.append(item.call_id)
+
+                task = get_allocation(
+                    self.portfolio_repository,
+                    self.portfolio_valuator,
+                    self.portfolio_analytics)
+
+                tool_result_tasks.append(task)
+
         return call_ids, tool_result_tasks
