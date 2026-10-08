@@ -62,7 +62,7 @@ async def test_analyse_returns_portfolio_analysis(
 
 
 @pytest.mark.asyncio
-@patch("portfolio_analyzer.services.llm_service.get_stock_price")
+@patch("portfolio_analyzer.tools.registry.get_stock_price")
 async def test_analyse_handles_stock_price_tool_call(mock_get_stock_price):
     client = AsyncMock()
 
@@ -129,7 +129,7 @@ async def test_analyse_handles_stock_price_tool_call(mock_get_stock_price):
 
 
 @pytest.mark.asyncio
-@patch("portfolio_analyzer.services.llm_service.get_stock_price")
+@patch("portfolio_analyzer.tools.registry.get_stock_price")
 async def test_analyse_handles_multiple_stock_price_tool_calls(mock_get_stock_price):
     client = AsyncMock()
 
@@ -230,7 +230,7 @@ async def test_analyse_handles_multiple_stock_price_tool_calls(mock_get_stock_pr
 
 
 @pytest.mark.asyncio
-@patch("portfolio_analyzer.services.llm_service.get_stock_price")
+@patch("portfolio_analyzer.tools.registry.get_stock_price")
 async def test_analyse_handles_multiple_stock_price_tool_call_rounds(mock_get_stock_price):
     client = AsyncMock()
 
@@ -328,7 +328,7 @@ async def test_analyse_handles_multiple_stock_price_tool_call_rounds(mock_get_st
 
 
 @pytest.mark.asyncio
-@patch("portfolio_analyzer.services.llm_service.get_allocation")
+@patch("portfolio_analyzer.tools.registry.get_allocation")
 async def test_analyse_handles_allocation_tool_call(mock_get_allocation):
     client = AsyncMock()
 
@@ -403,8 +403,8 @@ async def test_analyse_handles_allocation_tool_call(mock_get_allocation):
 
 
 @pytest.mark.asyncio
-@patch("portfolio_analyzer.services.llm_service.get_allocation")
-@patch("portfolio_analyzer.services.llm_service.get_stock_price")
+@patch("portfolio_analyzer.tools.registry.get_allocation")
+@patch("portfolio_analyzer.tools.registry.get_stock_price")
 async def test_analyse_handles_multiple_tool_types_in_same_response(mock_get_stock_price, mock_get_allocation):
     client = AsyncMock()
 
@@ -513,8 +513,8 @@ async def test_analyse_handles_multiple_tool_types_in_same_response(mock_get_sto
 
 
 @pytest.mark.asyncio
-@patch("portfolio_analyzer.services.llm_service.get_allocation")
-@patch("portfolio_analyzer.services.llm_service.get_stock_price")
+@patch("portfolio_analyzer.tools.registry.get_allocation")
+@patch("portfolio_analyzer.tools.registry.get_stock_price")
 async def test_analyse_handles_multiple_tool_call_rounds(mock_get_stock_price, mock_get_allocation):
     client = AsyncMock()
 

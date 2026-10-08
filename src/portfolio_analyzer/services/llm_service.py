@@ -11,7 +11,7 @@ from portfolio_analyzer.repositories.portfolio_repository import PortfolioReposi
 from portfolio_analyzer.services.portfolio_valuator import PortfolioValuator
 from portfolio_analyzer.services.price_service import PriceService
 from portfolio_analyzer.tools.definitions import get_stock_price_tool, get_allocation_tool
-from portfolio_analyzer.tools.stock_tools import get_stock_price, get_allocation
+from portfolio_analyzer.tools.registry import build_tool_registry
 
 
 class LLMService:
@@ -22,6 +22,8 @@ class LLMService:
         self.portfolio_repository = portfolio_repository
         self.portfolio_valuator = portfolio_valuator
         self.portfolio_analytics = portfolio_analytics
+        self.tool_registry = build_tool_registry(price_service, portfolio_repository, portfolio_valuator,
+                                                 portfolio_analytics)
 
     async def analyse(self, prompt: str) -> PortfolioAnalysis:
         try:
@@ -86,27 +88,21 @@ class LLMService:
         call_ids = []
 
         for item in response.output:
-            if getattr(item, "type", None) == "function_call" and getattr(item, "name", None) == "get_stock_price":
+            if getattr(item, "type", None) == "function_call":
+                function_call_name = str(getattr(item, "name", None))
+                executor_details = self.tool_registry[function_call_name]
+                dependencies = executor_details['dependencies']
+                llm_argument_values = []
                 arguments = json.loads(str(item.arguments))
-                symbol = arguments["symbol"]
+                llm_argument_names = executor_details['llm_arguments']
 
+                for argument_name in llm_argument_names:
+                    argument_value = arguments[argument_name]
+                    llm_argument_values.append(argument_value)
+
+                executor_args = llm_argument_values + dependencies
                 call_ids.append(item.call_id)
-
-                task = get_stock_price(
-                    symbol,
-                    self.price_service,
-                )
-
-                tool_result_tasks.append(task)
-
-            elif getattr(item, "type", None) == "function_call" and getattr(item, "name", None) == "get_allocation":
-                call_ids.append(item.call_id)
-
-                task = get_allocation(
-                    self.portfolio_repository,
-                    self.portfolio_valuator,
-                    self.portfolio_analytics)
-
+                task = executor_details["executor"](*executor_args)
                 tool_result_tasks.append(task)
 
         return call_ids, tool_result_tasks
