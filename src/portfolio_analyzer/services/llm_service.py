@@ -76,11 +76,20 @@ class LLMService:
             {
                 "type": "function_call_output",
                 "call_id": call_id,
-                "output": str(tool_result),
+                "output": self._serialize_tool_result(tool_result),
             }
             for tool_result, call_id in zip(tool_results, call_ids)
         ]
         return tool_outputs
+
+    def _serialize_tool_result(self, result: object):
+        if isinstance(result, tuple):
+            return json.dumps([
+                r.model_dump(mode="json")
+                for r in result
+            ])
+        else:
+            return json.dumps(result)
 
     def _extract_tool_calls(self, response: ParsedResponse[PortfolioAnalysis]) -> tuple[
         list[str], list]:
@@ -92,10 +101,10 @@ class LLMService:
                 function_call_name = str(getattr(item, "name", None))
                 executor_details = self.tool_registry[function_call_name]
                 dependencies = executor_details['dependencies']
-                llm_argument_values = []
                 arguments = json.loads(str(item.arguments))
                 llm_argument_names = executor_details['llm_arguments']
 
+                llm_argument_values = []
                 for argument_name in llm_argument_names:
                     argument_value = arguments[argument_name]
                     llm_argument_values.append(argument_value)
@@ -103,6 +112,7 @@ class LLMService:
                 executor_args = llm_argument_values + dependencies
                 call_ids.append(item.call_id)
                 task = executor_details["executor"](*executor_args)
+
                 tool_result_tasks.append(task)
 
         return call_ids, tool_result_tasks

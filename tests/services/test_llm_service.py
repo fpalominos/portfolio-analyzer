@@ -1,3 +1,4 @@
+import json
 from unittest.mock import AsyncMock, Mock, patch, call
 from unittest.mock import create_autospec
 
@@ -5,9 +6,6 @@ import pytest
 from openai import OpenAIError
 
 from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
-from portfolio_analyzer.domain.allocation import Allocation
-from portfolio_analyzer.domain.stock import Stock
-from portfolio_analyzer.domain.valued_position import ValuedPosition
 from portfolio_analyzer.exceptions.llm_service import LLMServiceError
 from portfolio_analyzer.models.portfolio_analysis import PortfolioAnalysis
 from portfolio_analyzer.repositories.portfolio_repository import PortfolioRepository
@@ -15,6 +13,7 @@ from portfolio_analyzer.services.llm_service import LLMService
 from portfolio_analyzer.services.portfolio_valuator import PortfolioValuator
 from portfolio_analyzer.services.price_service import PriceService
 from portfolio_analyzer.tools.definitions import get_stock_price_tool, get_allocation_tool
+from portfolio_analyzer.tools.stock_tools import AllocationResult
 
 # parse() is the async operation we await, so it is represented by an AsyncMock.
 # The Response returned by parse() is a normal object, so a regular Mock is enough.
@@ -361,8 +360,8 @@ async def test_analyse_handles_allocation_tool_call(mock_get_allocation):
     price_service = Mock(spec=PriceService)
 
     mock_get_allocation.return_value = (
-        Allocation(ValuedPosition(Stock("AAPL", 10), 100.0), 0.33),
-        Allocation(ValuedPosition(Stock("MSFT", 10), 200.0), 0.66)
+        AllocationResult(symbol="AAPL", weight=0.33),
+        AllocationResult(symbol="MSFT", weight=0.66)
     )
 
     portfolio_valuator = Mock(spec=PortfolioValuator)
@@ -379,16 +378,13 @@ async def test_analyse_handles_allocation_tool_call(mock_get_allocation):
 
     second_call = client.responses.parse.await_args_list[1]
 
-    expected_allocations = (
-        Allocation(ValuedPosition(Stock("AAPL", 10), 100.0), 0.33),
-        Allocation(ValuedPosition(Stock("MSFT", 10), 200.0), 0.66),
-    )
+    expected_allocations = '[{"symbol": "AAPL", "weight": 0.33}, {"symbol": "MSFT", "weight": 0.66}]'
 
     assert second_call.kwargs["input"] == [
         {
             "type": "function_call_output",
             "call_id": "call_123",
-            "output": str(expected_allocations)
+            "output": expected_allocations
         }
     ]
 
@@ -455,8 +451,8 @@ async def test_analyse_handles_multiple_tool_types_in_same_response(mock_get_sto
 
     mock_get_stock_price.side_effect = get_stock_price_side_effect
     mock_get_allocation.return_value = (
-        Allocation(ValuedPosition(Stock("AAPL", 10), 100.0), 0.33),
-        Allocation(ValuedPosition(Stock("MSFT", 10), 200.0), 0.66)
+        AllocationResult(symbol="AAPL", weight=0.33),
+        AllocationResult(symbol="MSFT", weight=0.66)
     )
 
     portfolio_valuator = Mock(spec=PortfolioValuator)
@@ -479,10 +475,7 @@ async def test_analyse_handles_multiple_tool_types_in_same_response(mock_get_sto
 
     second_call = client.responses.parse.await_args_list[1]
 
-    expected_allocations = (
-        Allocation(ValuedPosition(Stock("AAPL", 10), 100.0), 0.33),
-        Allocation(ValuedPosition(Stock("MSFT", 10), 200.0), 0.66),
-    )
+    expected_allocations = '[{"symbol": "AAPL", "weight": 0.33}, {"symbol": "MSFT", "weight": 0.66}]'
 
     assert second_call.kwargs["input"] == [
         {
@@ -498,7 +491,7 @@ async def test_analyse_handles_multiple_tool_types_in_same_response(mock_get_sto
         {
             "type": "function_call_output",
             "call_id": "call_3",
-            "output": str(expected_allocations),
+            "output": expected_allocations,
         }
     ]
 
@@ -565,8 +558,8 @@ async def test_analyse_handles_multiple_tool_call_rounds(mock_get_stock_price, m
     mock_get_stock_price.side_effect = get_stock_price_side_effect
 
     mock_get_allocation.return_value = (
-        Allocation(ValuedPosition(Stock("AAPL", 10), 100.0), 0.33),
-        Allocation(ValuedPosition(Stock("MSFT", 10), 200.0), 0.66)
+        AllocationResult(symbol="AAPL", weight=0.33),
+        AllocationResult(symbol="MSFT", weight=0.66)
     )
 
     portfolio_valuator = Mock(spec=PortfolioValuator)
@@ -597,16 +590,13 @@ async def test_analyse_handles_multiple_tool_call_rounds(mock_get_stock_price, m
         }
     ]
 
-    expected_allocations = (
-        Allocation(ValuedPosition(Stock("AAPL", 10), 100.0), 0.33),
-        Allocation(ValuedPosition(Stock("MSFT", 10), 200.0), 0.66),
-    )
+    expected_allocations = '[{"symbol": "AAPL", "weight": 0.33}, {"symbol": "MSFT", "weight": 0.66}]'
 
     assert third_call.kwargs["input"] == [
         {
             "type": "function_call_output",
             "call_id": "call_2",
-            "output": str(expected_allocations),
+            "output": expected_allocations,
         }
     ]
 
@@ -621,9 +611,25 @@ async def test_analyse_handles_multiple_tool_call_rounds(mock_get_stock_price, m
     )
 
 
-# test_analyse_handles_allocation_tool_call	One allocation call
-# test_analyse_handles_multiple_tool_types_in_same_response
-# test_analyse_handles_multiple_tool_call_rounds
+def test_serialize_tool_result_returns_json_for_float(llm_service):
+    result = llm_service._serialize_tool_result(250.19)
+
+    assert json.loads(result) == 250.19
+
+
+def test_serialize_tool_result_returns_json_for_tuple_of_pydantic_models(llm_service):
+    tool_result = (
+        AllocationResult(symbol="AAPL", weight=0.33),
+        AllocationResult(symbol="MSFT", weight=0.66),
+    )
+
+    result = llm_service._serialize_tool_result(tool_result)
+
+    assert json.loads(result) == [
+        {"symbol": "AAPL", "weight": 0.33},
+        {"symbol": "MSFT", "weight": 0.66},
+    ]
+
 
 @pytest.mark.asyncio
 async def test_analyse_raises_llm_service_error_for_no_structured_output():

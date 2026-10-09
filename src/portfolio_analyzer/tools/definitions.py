@@ -9,4 +9,4 @@ def get_stock_price_tool():
 
 
 def get_allocation_tool():
-    return pydantic_function_tool(AllocationRequest, name="get_allocation_tool")
+    return pydantic_function_tool(AllocationRequest, name="get_allocation")
