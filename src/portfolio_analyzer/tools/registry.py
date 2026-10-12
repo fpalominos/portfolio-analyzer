@@ -1,3 +1,5 @@
+from typing import TypedDict, Callable, Any
+
 from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
 from portfolio_analyzer.repositories.portfolio_repository import PortfolioRepository
 from portfolio_analyzer.services.portfolio_valuator import PortfolioValuator
@@ -5,13 +7,19 @@ from portfolio_analyzer.services.price_service import PriceService
 from portfolio_analyzer.tools.stock_tools import get_stock_price, get_allocation
 
 
+class ToolSpec(TypedDict):
+    executor: Callable[..., Any]
+    dependencies: list[object]
+    llm_arguments: list[str]
+
+
 def build_tool_registry(
         price_service: PriceService,
         portfolio_repository: PortfolioRepository,
         portfolio_valuator: PortfolioValuator,
         portfolio_analytics: PortfolioAnalytics,
-):
-    tool_registry = {
+) -> dict[str, ToolSpec]:
+    return {
         'get_stock_price': {
             'executor': get_stock_price,
             'dependencies': [price_service],
@@ -23,5 +31,3 @@ def build_tool_registry(
             'llm_arguments': []
         },
     }
-
-    return tool_registry
