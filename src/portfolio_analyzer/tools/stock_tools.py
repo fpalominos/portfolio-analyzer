@@ -1,4 +1,5 @@
 from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
+from portfolio_analyzer.exceptions.portfolio import PortfolioNotFoundError
 from portfolio_analyzer.models.allocation_result import AllocationResult
 from portfolio_analyzer.repositories.portfolio_repository import PortfolioRepository
 from portfolio_analyzer.services.portfolio_valuator import PortfolioValuator
@@ -20,7 +21,7 @@ async def get_allocation(
     portfolio = portfolio_repository.get()
 
     if portfolio is None:
-        raise ValueError("Portfolio not found")
+        raise PortfolioNotFoundError("Portfolio not found")
     valued_positions = await portfolio_valuator.value_positions(portfolio)
     allocations = portfolio_analytics.allocation(valued_positions)
 

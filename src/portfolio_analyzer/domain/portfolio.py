@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Self
 
 from portfolio_analyzer.domain.stock import Stock
 
@@ -7,7 +8,7 @@ from portfolio_analyzer.domain.stock import Stock
 class Portfolio:
     positions: tuple[Stock, ...] = ()
 
-    def add_position(self, stock: Stock) -> "Portfolio":
-        return Portfolio(
+    def add_position(self, stock: Stock) -> Self:
+        return type(self)(
             positions=self.positions + (stock,)
         )
