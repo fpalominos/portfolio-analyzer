@@ -4,6 +4,8 @@ from unittest.mock import create_autospec
 
 import pytest
 from openai import OpenAIError
+from openai.pagination import AsyncNextCursorPage
+from openai.types.responses import ParsedResponse
 
 from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
 from portfolio_analyzer.exceptions.llm_service import LLMServiceError
@@ -671,3 +673,26 @@ async def test_analyse_raises_llm_service_error_for_openai_error():
         await service.analyse("Analyse my portfolio")
 
     assert str(excinfo.value) == "LLM service error."
+
+def test_extract_tool_calls_fails_when_unknown_tool_is_requested():
+    tool_call = Mock()
+    tool_call.type = "function_call"
+    tool_call.name = "get_largest_allocation"
+
+    fake_response = Mock()
+    fake_response.output = [tool_call]
+
+    llm_service = LLMService(
+        AsyncMock(),
+        Mock(spec=PriceService),
+        create_autospec(PortfolioRepository),
+        Mock(spec=PortfolioValuator),
+        Mock(spec=PortfolioAnalytics),
+    )
+
+    with pytest.raises(LLMServiceError) as excinfo:
+        llm_service._extract_tool_calls(fake_response)
+
+    assert str(excinfo.value) == (
+        "Unknown tool requested: get_largest_allocation"
+    )

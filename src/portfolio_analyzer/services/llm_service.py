@@ -99,7 +99,13 @@ class LLMService:
         for item in response.output:
             if getattr(item, "type", None) == "function_call":
                 function_call_name = str(getattr(item, "name", None))
-                executor_details = self.tool_registry[function_call_name]
+                try:
+                    executor_details = self.tool_registry[function_call_name]
+                except KeyError as exc:
+                    raise LLMServiceError(
+                        f"Unknown tool requested: {function_call_name}"
+                    ) from exc
+
                 dependencies = executor_details['dependencies']
                 arguments = json.loads(str(item.arguments))
                 llm_argument_names = executor_details['llm_arguments']
