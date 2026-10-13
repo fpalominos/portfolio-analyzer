@@ -1,5 +1,6 @@
 import asyncio
 import json
+from json import JSONDecodeError
 
 from openai import AsyncOpenAI, OpenAIError
 from openai.types.responses import ParsedResponse
@@ -107,7 +108,12 @@ class LLMService:
                     ) from exc
 
                 dependencies = executor_details['dependencies']
-                arguments = json.loads(str(item.arguments))
+                try:
+                    arguments = json.loads(str(item.arguments))
+                except JSONDecodeError as exc:
+                    raise LLMServiceError(
+                        "Malformed function arguments"
+                    ) from exc
                 llm_argument_names = executor_details['llm_arguments']
 
                 llm_argument_values = []
