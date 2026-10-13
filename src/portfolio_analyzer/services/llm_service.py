@@ -118,7 +118,12 @@ class LLMService:
 
                 llm_argument_values = []
                 for argument_name in llm_argument_names:
-                    argument_value = arguments[argument_name]
+                    try:
+                        argument_value = arguments[argument_name]
+                    except KeyError as exc:
+                        raise LLMServiceError(
+                            f"Missing function argument: {argument_name}"
+                        ) from exc
                     llm_argument_values.append(argument_value)
 
                 executor_args = llm_argument_values + dependencies

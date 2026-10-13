@@ -674,6 +674,7 @@ async def test_analyse_raises_llm_service_error_for_openai_error():
 
     assert str(excinfo.value) == "LLM service error."
 
+
 def test_extract_tool_calls_fails_when_unknown_tool_is_requested():
     tool_call = Mock()
     tool_call.type = "function_call"
@@ -696,6 +697,7 @@ def test_extract_tool_calls_fails_when_unknown_tool_is_requested():
     assert str(excinfo.value) == (
         "Unknown tool requested: get_largest_allocation"
     )
+
 
 def test_extract_tool_calls_fails_when_arguments_are_malformed():
     tool_call = Mock()
@@ -722,3 +724,26 @@ def test_extract_tool_calls_fails_when_arguments_are_malformed():
     )
 
 
+def test_extract_tool_calls_fails_when_required_argument_is_missing():
+    tool_call = Mock()
+    tool_call.type = "function_call"
+    tool_call.name = "get_stock_price"
+    tool_call.arguments = '{"name": "NVIDIA"}'
+
+    fake_response = Mock()
+    fake_response.output = [tool_call]
+
+    llm_service = LLMService(
+        AsyncMock(),
+        Mock(spec=PriceService),
+        create_autospec(PortfolioRepository),
+        Mock(spec=PortfolioValuator),
+        Mock(spec=PortfolioAnalytics),
+    )
+
+    with pytest.raises(LLMServiceError) as excinfo:
+        llm_service._extract_tool_calls(fake_response)
+
+    assert str(excinfo.value) == (
+        "Missing function argument: symbol"
+    )
