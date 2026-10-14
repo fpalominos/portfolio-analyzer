@@ -4,11 +4,12 @@ from unittest.mock import create_autospec
 
 import pytest
 from openai import OpenAIError
-from openai.pagination import AsyncNextCursorPage
-from openai.types.responses import ParsedResponse
 
 from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
 from portfolio_analyzer.exceptions.llm_service import LLMServiceError
+from portfolio_analyzer.exceptions.portfolio import PortfolioNotFoundError
+from portfolio_analyzer.exceptions.price_service import PriceServiceError
+from portfolio_analyzer.models.llm_service import ToolError
 from portfolio_analyzer.models.portfolio_analysis import PortfolioAnalysis
 from portfolio_analyzer.repositories.portfolio_repository import PortfolioRepository
 from portfolio_analyzer.services.llm_service import LLMService
@@ -633,6 +634,17 @@ def test_serialize_tool_result_returns_json_for_tuple_of_pydantic_models(llm_ser
     ]
 
 
+def test_serialize_tool_result_returns_json_for_pydantic_models(llm_service):
+    tool_result = ToolError(error="portfolio_not_found", message="Portfolio not found")
+
+    result = llm_service._serialize_tool_result(tool_result)
+
+    assert json.loads(result) == {
+        "error": "portfolio_not_found",
+        "message": "Portfolio not found",
+    }
+
+
 @pytest.mark.asyncio
 async def test_analyse_raises_llm_service_error_for_no_structured_output():
     client = AsyncMock()
@@ -747,3 +759,107 @@ def test_extract_tool_calls_fails_when_required_argument_is_missing():
     assert str(excinfo.value) == (
         "Missing function argument: symbol"
     )
+
+
+@pytest.mark.asyncio
+async def test_build_tool_outputs_returns_error_for_price_service_failure():
+    failing_task = AsyncMock(
+        side_effect=PriceServiceError("Unable to retrieve price")
+    )
+
+    llm_service = LLMService(
+        AsyncMock(),
+        Mock(spec=PriceService),
+        create_autospec(PortfolioRepository),
+        Mock(spec=PortfolioValuator),
+        Mock(spec=PortfolioAnalytics),
+    )
+
+    result = await llm_service._build_tool_outputs(
+        ["call_123"],
+        [failing_task()],
+    )
+
+    assert len(result) == 1
+    assert result[0]["type"] == "function_call_output"
+    assert result[0]["call_id"] == "call_123"
+
+    output = json.loads(result[0]["output"])
+    assert output == {
+        "error": "price_unavailable",
+        "message": "Unable to retrieve price",
+    }
+
+
+@pytest.mark.asyncio
+async def test_build_tool_outputs_returns_error_for_portfolio_not_found_failure():
+    failing_task = AsyncMock(
+        side_effect=PortfolioNotFoundError("Portfolio not found")
+    )
+
+    llm_service = LLMService(
+        AsyncMock(),
+        Mock(spec=PriceService),
+        create_autospec(PortfolioRepository),
+        Mock(spec=PortfolioValuator),
+        Mock(spec=PortfolioAnalytics),
+    )
+
+    result = await llm_service._build_tool_outputs(
+        ["call_123"],
+        [failing_task()],
+    )
+
+    assert len(result) == 1
+    assert result[0]["type"] == "function_call_output"
+    assert result[0]["call_id"] == "call_123"
+
+    output = json.loads(result[0]["output"])
+    assert output == {
+        "error": "portfolio_not_found",
+        "message": "Portfolio not found",
+    }
+
+
+@pytest.mark.asyncio
+async def test_build_tool_outputs_returns_successful_get_stock_price_tool_result():
+    task = AsyncMock(return_value=250.0)
+
+    llm_service = LLMService(
+        AsyncMock(),
+        Mock(spec=PriceService),
+        create_autospec(PortfolioRepository),
+        Mock(spec=PortfolioValuator),
+        Mock(spec=PortfolioAnalytics),
+    )
+
+    result = await llm_service._build_tool_outputs(
+        ["call_123"],
+        [task()],
+    )
+
+    assert len(result) == 1
+    assert result[0]["type"] == "function_call_output"
+    assert result[0]["call_id"] == "call_123"
+    assert json.loads(result[0]["output"]) == 250.0
+
+
+@pytest.mark.asyncio
+async def test_build_tool_outputs_propagates_unexpected_errors():
+    failing_task = AsyncMock(
+        side_effect=ValueError("Invalid value")
+    )
+
+    llm_service = LLMService(
+        AsyncMock(),
+        Mock(spec=PriceService),
+        create_autospec(PortfolioRepository),
+        Mock(spec=PortfolioValuator),
+        Mock(spec=PortfolioAnalytics),
+    )
+
+    with pytest.raises(ValueError, match="Invalid value"):
+        await llm_service._build_tool_outputs(
+            ["call_123"],
+            [failing_task()],
+        )

@@ -7,3 +7,7 @@ class PortfolioAnalysisRequest(BaseModel):
 
 class PortfolioAnalysisResponse(BaseModel):
     analysis: PortfolioAnalysis
+
+class ToolError(BaseModel):
+    error: str
+    message: str

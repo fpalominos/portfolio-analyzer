@@ -4,9 +4,13 @@ from json import JSONDecodeError
 
 from openai import AsyncOpenAI, OpenAIError
 from openai.types.responses import ParsedResponse
+from pydantic import BaseModel
 
 from portfolio_analyzer.analytics.portfolio_analytics import PortfolioAnalytics
 from portfolio_analyzer.exceptions.llm_service import LLMServiceError
+from portfolio_analyzer.exceptions.portfolio import PortfolioNotFoundError
+from portfolio_analyzer.exceptions.price_service import PriceServiceError
+from portfolio_analyzer.models.llm_service import ToolError
 from portfolio_analyzer.models.portfolio_analysis import PortfolioAnalysis
 from portfolio_analyzer.repositories.portfolio_repository import PortfolioRepository
 from portfolio_analyzer.services.portfolio_valuator import PortfolioValuator
@@ -72,7 +76,25 @@ class LLMService:
             ) from exc
 
     async def _build_tool_outputs(self, call_ids: list[str], tool_result_tasks: list) -> list[dict[str, str]]:
-        tool_results = await asyncio.gather(*tool_result_tasks)
+
+        async def execute_tool(task):
+            try:
+                return await task
+            except PriceServiceError as exc:
+                return ToolError(
+                    error="price_unavailable",
+                    message=str(exc),
+                )
+            except PortfolioNotFoundError as exc:
+                return ToolError(
+                    error="portfolio_not_found",
+                    message=str(exc),
+                )
+
+        tool_results = await asyncio.gather(
+            *[execute_tool(task) for task in tool_result_tasks]
+        )
+
         tool_outputs = [
             {
                 "type": "function_call_output",
@@ -83,14 +105,16 @@ class LLMService:
         ]
         return tool_outputs
 
-    def _serialize_tool_result(self, result: object):
+    def _serialize_tool_result(self, result: object) -> str:
         if isinstance(result, tuple):
-            return json.dumps([
-                r.model_dump(mode="json")
-                for r in result
-            ])
-        else:
-            return json.dumps(result)
+            result = [
+                item.model_dump(mode="json")
+                for item in result
+            ]
+        elif isinstance(result, BaseModel):
+            result = result.model_dump(mode="json")
+
+        return json.dumps(result)
 
     def _extract_tool_calls(self, response: ParsedResponse[PortfolioAnalysis]) -> tuple[
         list[str], list]:
