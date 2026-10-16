@@ -863,3 +863,71 @@ async def test_build_tool_outputs_propagates_unexpected_errors():
             ["call_123"],
             [failing_task()],
         )
+
+
+# Verify that the tool error is sent back to the LLM so it can produce
+# a structured response, and that the continuation references the original response.
+@pytest.mark.asyncio
+@patch("portfolio_analyzer.tools.registry.get_stock_price")
+async def test_analyse_handles_stock_price_tool_failure(mock_get_stock_price):
+    client = AsyncMock()
+
+    tool_call = Mock()
+    tool_call.type = "function_call"
+    tool_call.name = "get_stock_price"
+    tool_call.arguments = '{"symbol": "NVDA"}'
+    tool_call.call_id = "call_123"
+
+    tool_response = Mock()
+    tool_response.output = [tool_call]
+    tool_response.id = "response_123"
+
+    expected_analysis = PortfolioAnalysis(
+        summary="Unable to complete the price analysis.",
+        diversification="Diversification not assessed.",
+        risks=["Current stock price unavailable."],
+        recommendations=["Retry when price data is available."],
+    )
+
+    final_response = Mock()
+    final_response.output = []
+    final_response.output_parsed = expected_analysis
+
+    client.responses.parse.side_effect = [
+        tool_response,
+        final_response,
+    ]
+
+    mock_get_stock_price.side_effect = PriceServiceError(
+        "Unable to retrieve price"
+    )
+
+    service = LLMService(
+        client,
+        Mock(spec=PriceService),
+        create_autospec(PortfolioRepository),
+        Mock(spec=PortfolioValuator),
+        Mock(spec=PortfolioAnalytics),
+    )
+
+    result = await service.analyse("What is the current price of Nvidia?")
+
+    assert isinstance(result, PortfolioAnalysis)
+    assert result == expected_analysis
+
+    assert client.responses.parse.await_count == 2
+
+    second_call = client.responses.parse.await_args_list[1]
+
+    assert second_call.kwargs["input"] == [
+        {
+            "type": "function_call_output",
+            "call_id": "call_123",
+            "output": (
+                '{"error": "price_unavailable", '
+                '"message": "Unable to retrieve price"}'
+            ),
+        }
+    ]
+
+    assert second_call.kwargs["previous_response_id"] == "response_123"
